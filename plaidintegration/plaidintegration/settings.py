@@ -13,7 +13,7 @@ import os
 from pathlib import Path
 
 PLAID_CLIENT_ID = '5f82098567d62700137a236a'
-PLAID_SECRET = '7d8d2c67292f7609cc4276a5477dbc'
+PLAID_SECRET = 'SECRET'
 PLAID_ENV = 'sandbox'
 PLAID_PRODUCTS = 'auth,transactions'
 
