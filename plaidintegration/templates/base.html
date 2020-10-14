@@ -3,12 +3,16 @@
 <head>
   <meta charset="utf-8">
   <title>{% block title %}Plaid Integration{% endblock %}</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.3/jquery.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+  {% load static %}
+  <script type="text/javascript" src="{% static '/plaidapis/app.js' %}"></script>
   {% block static_content %}
   {% endblock %}
 </head>
 <body>
   <main>
+    <button onclick="initPlaid()">Connect Plaid</button>
     {% block content %}
     {% endblock %}
   </main>

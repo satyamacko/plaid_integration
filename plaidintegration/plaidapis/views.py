@@ -13,8 +13,8 @@ client = plaid.Client(client_id=settings.PLAID_CLIENT_ID,
 
 @csrf_exempt
 @api_view(['POST'])
-@authentication_classes([SessionAuthentication, BasicAuthentication])
-@permission_classes([IsAuthenticated])
+# @authentication_classes([SessionAuthentication, BasicAuthentication])
+# @permission_classes([IsAuthenticated])
 def get_link_token(request):
     print(client, request, request.user, request.user.id, request.data)
     response = client.LinkToken.create({
@@ -32,8 +32,8 @@ def get_link_token(request):
 
 
 @api_view(['POST'])
-@authentication_classes([SessionAuthentication, BasicAuthentication])
-@permission_classes([IsAuthenticated])
+# @authentication_classes([SessionAuthentication, BasicAuthentication])
+# @permission_classes([IsAuthenticated])
 def get_access_token(request):
     print("get_access_token::", client, request, request.user, request.user.id, request.data)
     public_token = request.data['public_token']
@@ -45,8 +45,8 @@ def get_access_token(request):
 
 
 @api_view(['POST'])
-@authentication_classes([SessionAuthentication, BasicAuthentication])
-@permission_classes([IsAuthenticated])
+# @authentication_classes([SessionAuthentication, BasicAuthentication])
+# @permission_classes([IsAuthenticated])
 def get_user_transactions(request):
     try:
         print("get_user_transactions - ", client, request, request.user, request.user.id, request.data)
