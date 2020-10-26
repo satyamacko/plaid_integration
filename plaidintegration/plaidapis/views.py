@@ -1,14 +1,20 @@
 import plaid
+import structlog
 from django.conf import settings
 from django.http import JsonResponse
+from plaid.errors import BaseError, InvalidRequestError
+from rest_framework import status
+from rest_framework.response import Response
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
 
-client = plaid.Client(client_id=settings.PLAID_CLIENT_ID,
-                      secret=settings.PLAID_SECRET,
-                      environment=settings.PLAID_ENV)
+from plaidapis.models import WebhookCallbackLogs
+from plaidapis.tasks import exchange_public_token_task, process_transaction_callbacks_task
+from plaidapis.utils import get_plaid_client
+
+logger = structlog.get_logger()
 
 
 @csrf_exempt
@@ -16,6 +22,7 @@ client = plaid.Client(client_id=settings.PLAID_CLIENT_ID,
 # @authentication_classes([SessionAuthentication, BasicAuthentication])
 # @permission_classes([IsAuthenticated])
 def get_link_token(request):
+    client = get_plaid_client()
     print(client, request, request.user, request.user.id, request.data)
     response = client.LinkToken.create({
         'user': {
@@ -35,6 +42,7 @@ def get_link_token(request):
 # @authentication_classes([SessionAuthentication, BasicAuthentication])
 # @permission_classes([IsAuthenticated])
 def get_access_token(request):
+    client = get_plaid_client()
     print("get_access_token::", client, request, request.user, request.user.id, request.data)
     public_token = request.data['public_token']
     exchange_response = client.Item.public_token.exchange(public_token)
@@ -49,18 +57,68 @@ def get_access_token(request):
 # @permission_classes([IsAuthenticated])
 def get_user_transactions(request):
     try:
+        client = get_plaid_client()
         print("get_user_transactions - ", client, request, request.user, request.user.id, request.data)
         access_token = request.data['access_token']
+        # client.Sandbox.public_token.create()
         response = client.Transactions.get(access_token,
-                                           start_date='2020-08-01',
+                                           start_date='2021-08-01',
                                            end_date='2020-10-01')
         print("get_user_transactions:: response - ", response)
         transactions_json = {
             "transactions": response['transactions']
         }
         return JsonResponse(transactions_json)
-    except plaid.errors as e:
+    except InvalidRequestError as e:
+        print(e.type)
         print("get_user_transactions:: Exception - ", str(e))
+        return e
+
+
+@api_view(['POST'])
+@authentication_classes([SessionAuthentication, BasicAuthentication])
+@permission_classes([IsAuthenticated])
+def get_public_token_and_exchange(request):
+    try:
+        client = get_plaid_client()
+        logger.info("get_public_token_and_exchange:: - ", client=client, request=request,
+                    request_user=request.user, request_user_id=request.user.id, request_data=request.data)
+        # wells fargo ins_4; Citi ins_5; Chase ins_3; Bank of America ins_1
+        print("get_public_token_and_exchange:: institution_id -", request.query_params.get('institution_id'))
+        institution_id = request.query_params.get('institution_id')
+        if institution_id is None:
+            logger.warn("get_public_token_and_exchange:: institution_id is not present in query param. "
+                        "Setting default ins_1")
+        response = client.Sandbox.public_token.create(initial_products=['transactions'], institution_id=institution_id,
+                                                      webhook='https://satyamsammi.free.beeceptor.com')
+        public_token = response['public_token']
+        exchange_public_token_task.delay(public_token, request.user.id, institution_id)
+        return JsonResponse(response)
+    except plaid.errors.BaseError as e:
+        print("get_public_token_and_exchange:: Exception - ", str(e))
         return JsonResponse(str(e), safe=False)
 
 
+@api_view(['POST'])
+def handle_transaction_webhook_callbacks(request):
+    """
+    This API is responsible to handle transaction callbacks
+    asynchronously. We can implement the webhook verification to validate
+    the correct source of callbacks.
+    """
+    try:
+        logger.info("handle_transaction_webhook_callbacks", request=request)
+        WebhookCallbackLogs.objects.create(payload=request.data)
+        process_transaction_callbacks_task.delay(request.data)
+        response = {
+            "success": True,
+            "message": "Successfully accepted the callback"
+        }
+        return Response(response, status=status.HTTP_200_OK)
+    except Exception as e:
+        logger.error("handle_transaction_webhook_callbacks:: Exception - ", str(e))
+        response = {
+            "success": False,
+            "error": str(e)
+        }
+        return Response(response, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

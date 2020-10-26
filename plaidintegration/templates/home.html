@@ -4,8 +4,29 @@
 
 {% block content %}
 {% if user.is_authenticated %}
-  <p>Hi {{ user.username }}!</p>
+  <p>Hi {{ user.username }}! Please connect with your following Bank accounts - </p>
+  <form action="{% url 'get_public_token' %}?institution_id=ins_1" method='POST'>
+    {% csrf_token %}
+    <button type='submit'>Bank of America</button>
+  </form>
+  <form action="{% url 'get_public_token' %}?institution_id=ins_2" method='POST'>
+    {% csrf_token %}
+    <button type='submit'>BB&T - Online Banking</button>
+  </form>
+  <form action="{% url 'get_public_token' %}?institution_id=ins_3" method='POST'>
+    {% csrf_token %}
+    <button type='submit'>Chase</button>
+  </form>
+  <form action="{% url 'get_public_token' %}?institution_id=ins_4" method='POST'>
+    {% csrf_token %}
+    <button type='submit'>Wells Fargo</button>
+  </form>
+  <form action="{% url 'get_public_token' %}?institution_id=ins_5" method='POST'>
+    {% csrf_token %}
+    <button type='submit'>Citi</button>
+  </form>
   <p><a href="{% url 'logout' %}">Log Out</a></p>
+
 {% else %}
   <p>You are not logged in</p>
   <a href="{% url 'login' %}">Log In</a> |

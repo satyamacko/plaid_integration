@@ -6,7 +6,7 @@ async function initPlaid(){
         // Send the public_token to your app server.
         console.log("public_token is - ", public_token)
         $.post('plaid/get_access_token/', {
-          public_token: 'link-sandbox-0503eac0-440c-4925-be1f-146d23737952',
+          public_token: public_token,
         });
       },
       onExit: (err, metadata) => {

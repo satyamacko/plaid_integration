@@ -12,10 +12,13 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 import os
 from pathlib import Path
 
+import structlog
+
 PLAID_CLIENT_ID = '5f82098567d62700137a236a'
-PLAID_SECRET = 'SECRET'
+PLAID_SECRET = ''
 PLAID_ENV = 'sandbox'
 PLAID_PRODUCTS = 'auth,transactions'
+SITE_URL = "http://127.0.0.1:8080"
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -32,6 +35,22 @@ SECRET_KEY = 'i&h(&z0n@7qc-!h65fsfx67j)_s)1wpt+j5+(op&%4)r12gc^v'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
+
+STRUCTLOG_CONFIG = {
+    "processors": [
+        # structlog.stdlib.add_logger_name,
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.PositionalArgumentsFormatter(),
+        structlog.processors.TimeStamper(fmt="%Y-%m-%d %H:%M.%S"),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        structlog.dev.ConsoleRenderer(),
+    ],
+    "context_class": dict,
+    # logger_factory=structlog.stdlib.LoggerFactory(),
+    "wrapper_class": structlog.stdlib.BoundLogger,
+    "cache_logger_on_first_use": True,
+}
 
 ALLOWED_HOSTS = []
 
@@ -136,3 +155,10 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [STATIC_DIR, ]
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'home'
+
+
+CELERY_BROKER_URL = 'redis://localhost:6379'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379'
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TASK_SERIALIZER = 'json'
