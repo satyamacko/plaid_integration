@@ -69,7 +69,7 @@ def get_public_token_and_exchange(request):
             logger.warn("get_public_token_and_exchange:: institution_id is not present in query param. "
                         "Setting default ins_1")
         response = client.Sandbox.public_token.create(initial_products=['transactions'], institution_id=institution_id,
-                                                      webhook='https://satyamsammi.free.beeceptor.com')
+                                                      webhook=settings.SITE_URL + '/plaid/transaction_callbacks/')
         public_token = response['public_token']
         exchange_public_token_task.delay(public_token, request.user.id, institution_id)
         res = {
