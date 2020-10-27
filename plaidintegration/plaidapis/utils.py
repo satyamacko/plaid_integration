@@ -148,7 +148,7 @@ def update_user_transactions(plaid_master_record, start_date, end_date):
                      error_code=e.code, request_id=e.request_id, plaid_master_record=plaid_master_record.id)
         return e
     except Exception as e:
-        print("update_user_transactions:: Exception - ", str(e))
+        logger.error("update_user_transactions:: Exception - ", exception=str(e))
         return None
 
 
