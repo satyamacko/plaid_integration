@@ -5,6 +5,7 @@ import plaidapis.models as m
 
 admin.site.register(m.WebhookCallbackLogs)
 
+
 @admin.register(m.UserPlaidMaster)
 class UserPlaidMasterAdmin(admin.ModelAdmin):
     list_display = ("user", "institution_id")

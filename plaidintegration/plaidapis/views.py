@@ -53,38 +53,17 @@ def get_access_token(request):
 
 
 @api_view(['POST'])
-# @authentication_classes([SessionAuthentication, BasicAuthentication])
-# @permission_classes([IsAuthenticated])
-def get_user_transactions(request):
-    try:
-        client = get_plaid_client()
-        print("get_user_transactions - ", client, request, request.user, request.user.id, request.data)
-        access_token = request.data['access_token']
-        # client.Sandbox.public_token.create()
-        response = client.Transactions.get(access_token,
-                                           start_date='2021-08-01',
-                                           end_date='2020-10-01')
-        print("get_user_transactions:: response - ", response)
-        transactions_json = {
-            "transactions": response['transactions']
-        }
-        return JsonResponse(transactions_json)
-    except InvalidRequestError as e:
-        print(e.type)
-        print("get_user_transactions:: Exception - ", str(e))
-        return e
-
-
-@api_view(['POST'])
 @authentication_classes([SessionAuthentication, BasicAuthentication])
 @permission_classes([IsAuthenticated])
 def get_public_token_and_exchange(request):
+    """
+    This API is used on home page to let user connect with
+    their bank accounts.
+    """
     try:
         client = get_plaid_client()
-        logger.info("get_public_token_and_exchange:: - ", client=client, request=request,
-                    request_user=request.user, request_user_id=request.user.id, request_data=request.data)
-        # wells fargo ins_4; Citi ins_5; Chase ins_3; Bank of America ins_1
-        print("get_public_token_and_exchange:: institution_id -", request.query_params.get('institution_id'))
+        logger.info("get_public_token_and_exchange:: - ", request=request, request_user=request.user,
+                    request_user_id=request.user.id, request_data=request.data)
         institution_id = request.query_params.get('institution_id')
         if institution_id is None:
             logger.warn("get_public_token_and_exchange:: institution_id is not present in query param. "
@@ -93,10 +72,23 @@ def get_public_token_and_exchange(request):
                                                       webhook='https://satyamsammi.free.beeceptor.com')
         public_token = response['public_token']
         exchange_public_token_task.delay(public_token, request.user.id, institution_id)
-        return JsonResponse(response)
-    except plaid.errors.BaseError as e:
-        print("get_public_token_and_exchange:: Exception - ", str(e))
-        return JsonResponse(str(e), safe=False)
+        res = {
+            "success": True,
+            "message": "Successfully connected to your bank account.",
+            "data": response
+        }
+        return Response(
+                res, status=status.HTTP_200_OK
+            )
+    except Exception as e:
+        logger.error("get_public_token_and_exchange:: Exception - ", exception=str(e))
+        res = {
+            "success": False,
+            "error": str(e)
+        }
+        return Response(
+                res, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 @api_view(['POST'])

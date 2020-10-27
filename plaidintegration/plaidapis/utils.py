@@ -4,6 +4,7 @@ import plaid
 import structlog
 from django.conf import settings
 from django.db.models import Q
+from plaid.errors import PlaidError, APIError, InstitutionError
 
 from plaidapis.models import UserAccountMaster, UserTransactionMaster
 from plaidapis.serializers import UserAccountMasterSerializer, UserTransactionMasterSerializer
@@ -44,9 +45,15 @@ def update_webhook_url(access_token):
 def fetch_user_accounts(access_token):
     try:
         response = client.Accounts.get(access_token)
+        logger.info("fetch_user_accounts:: response", response=response)
         return response
-    except plaid.errors.BaseError as e:
-        logger.info("fetch_user_accounts:: Exception - ", exception=str(e))
+    except (APIError, InstitutionError) as e:
+        logger.error("fetch_user_accounts:: APIError Exception", exception=str(e), error_type=e.type, error_code=e.code,
+                     request_id=e.request_id)
+        return e
+    except PlaidError as e:
+        logger.info("fetch_user_accounts:: Exception - ", exception=str(e), type=e.type, error_code=e.code,
+                    request_id=e.request_id)
         return None
 
 
@@ -54,7 +61,9 @@ def fetch_saved_user_accounts(user_plaid_master):
     accounts_list = list(UserAccountMaster.objects.filter(user_plaid_master=user_plaid_master).values())
     account_dict = dict()
     for account in accounts_list:
-        account_dict.add(account.get('account_id'), account)
+        account_dict[account.get('account_id')] = account
+    logger.info("fetch_saved_user_accounts:: saved accounts", user_plaid_master_id=user_plaid_master.id,
+                account_dict=account_dict, account_dict_len=len(account_dict))
     return account_dict
 
 
@@ -64,6 +73,7 @@ def get_user_transactions(access_token, start_date, end_date):
                                            start_date=start_date,
                                            end_date=end_date,
                                            count=500)
+        logger.info("get_user_transactions:: response -", response=response)
         transactions = response['transactions']
         while len(transactions) < response['total_transactions']:
             response = client.Transactions.get(access_token,
@@ -72,9 +82,18 @@ def get_user_transactions(access_token, start_date, end_date):
                                                offset=len(transactions)
                                                )
             transactions.extend(response['transactions'])
+        logger.info("get_user_transactions:: overall transactions -", transactions=transactions)
         return transactions
+    except (APIError, InstitutionError) as e:
+        logger.error("get_user_transactions:: APIError/InstitutionError Exception", exception=str(e), error_type=e.type,
+                     error_code=e.code, request_id=e.request_id)
+        return e
+    except PlaidError as e:
+        logger.error("get_user_transactions:: PlaidError Exception", exception=str(e), type=e.type, error_code=e.code,
+                     request_id=e.request_id)
+        return None
     except Exception as e:
-        print("get_user_transactions:: Exception - ", str(e))
+        logger.error("get_user_transactions:: Exception", exception=str(e))
         return None
 
 
@@ -105,7 +124,9 @@ def update_user_transactions(plaid_master_record, start_date, end_date):
         logger.info("update_user_transactions_start", plaid_master_record_id=plaid_master_record.id)
         start_date_obj = datetime.strptime(start_date, "%Y-%m-%d")
         new_transactions = get_user_transactions(plaid_master_record.access_token, start_date, end_date)
-        if len(new_transactions) == 0:
+        if new_transactions is None or len(new_transactions) == 0:
+            logger.warn("update_user_transactions:: new_transactions not available.",
+                        plaid_master_record_id=plaid_master_record.id)
             return
         saved_transactions = set(UserTransactionMaster.objects.filter(user_plaid_master=plaid_master_record,
                                                                       date__gte=start_date_obj.date(),
@@ -121,10 +142,22 @@ def update_user_transactions(plaid_master_record, start_date, end_date):
                     counter = counter + 1
                 except Exception as e:
                     logger.error("update_user_transactions:: Exception while saving transaction - ", exception=str(e))
-        logger.info("update_user_transactions", updated_count=counter)
+        logger.info("update_user_transactions", plaid_master_record_id=plaid_master_record.id, updated_count=counter)
+    except (APIError, InstitutionError) as e:
+        logger.error("update_user_transactions:: Plaid Exception", exception=str(e), error_type=e.type,
+                     error_code=e.code, request_id=e.request_id, plaid_master_record=plaid_master_record.id)
+        return e
     except Exception as e:
         print("update_user_transactions:: Exception - ", str(e))
         return None
+
+
+def remove_user_transactions(item_id, removed_transactions):
+    transactions_updated = UserTransactionMaster.objects \
+        .filter(transaction_id__in=removed_transactions, active=True) \
+        .update(active=False)
+    logger.info("remove_user_transactions::", item_id=item_id, transactions=removed_transactions,
+                count_removed=transactions_updated)
 
 
 class ValidationError(Exception):
