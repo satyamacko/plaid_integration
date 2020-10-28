@@ -31,6 +31,7 @@ class UserAccountMaster(TimeStampMixin):
     account_official_name = models.CharField(max_length=128, null=True)
     type = models.CharField(max_length=128)
     subtype = models.CharField(max_length=128)
+    active = models.BooleanField(default=True)
 
     def __str__(self):
         return str(self.user_plaid_master) + '_ac_name_' + self.account_name

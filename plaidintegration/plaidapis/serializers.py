@@ -22,7 +22,8 @@ class UserAccountMasterSerializer(ModelSerializer):
             "mask",
             "account_official_name",
             "type",
-            "subtype"
+            "subtype",
+            "active"
         ]
 
 
@@ -55,5 +56,6 @@ class UserTransactionMasterSerializer(ModelSerializer):
             "pending",
             "payment_meta",
             "date",
-            "authorized_date"
+            "authorized_date",
+            "active"
         ]

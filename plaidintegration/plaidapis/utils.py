@@ -188,6 +188,11 @@ class UserAccount(object):
             self.filter &= Q(user_plaid_master__user__username=params["username"])
         if "institution_id" in params:
             self.filter &= Q(user_plaid_master__institution_id=params["institution_id"])
+        if "active" in params:
+            if params["active"] == 'true':
+                self.filter &= Q(active=True)
+            else:
+                self.filter &= Q(active=False)
 
     @staticmethod
     def get_error_response(err):
@@ -218,6 +223,11 @@ class UserTransaction(object):
             self.filter &= Q(user_plaid_master__user__username=params["username"])
         if "institution_id" in params:
             self.filter &= Q(user_plaid_master__institution_id=params["institution_id"])
+        if "active" in params:
+            if params["active"] == 'true':
+                self.filter &= Q(active=True)
+            else:
+                self.filter &= Q(active=False)
 
     @staticmethod
     def get_error_response(err):
@@ -231,6 +241,7 @@ def validate_query_params(params):
         "user_id",
         "username",
         "institution_id",
+        "active",
     ]
     pagination_param = "page"
     unaccepted_params = []

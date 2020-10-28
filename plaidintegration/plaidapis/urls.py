@@ -1,8 +1,7 @@
 from django.urls import path
 
-from .api import UserAccountMasterListView, UserTransactionMasterListView
 from .views import get_link_token, get_access_token, get_public_token_and_exchange, \
-    handle_transaction_webhook_callbacks
+    handle_transaction_webhook_callbacks, UserAccountMasterListView, UserTransactionMasterListView
 
 urlpatterns = [
     path('get_link_token/', get_link_token, name='get_link_token'),
